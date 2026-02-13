@@ -1,10 +1,11 @@
-import { RGB, GradientConfig, GradientType } from '@/types/gradient'
+import { RGBA, GradientConfig, GradientType } from '@/types/gradient'
 
-export function randomRGB(): RGB {
+export function randomRGBA(): RGBA {
   return {
     r: Math.floor(Math.random() * 256),
     g: Math.floor(Math.random() * 256),
     b: Math.floor(Math.random() * 256),
+    a: 1,
   }
 }
 
@@ -24,8 +25,8 @@ export function randomGradientType(): GradientType {
 
 export function generateRandomColors(): Partial<GradientConfig> {
   return {
-    color1: randomRGB(),
-    color2: randomRGB(),
-    color3: randomRGB(),
+    color1: randomRGBA(),
+    color2: randomRGBA(),
+    color3: randomRGBA(),
   }
 }
