@@ -1,5 +1,7 @@
 # GradFlow
 
+> **Fork Notice**: This is a fork of [meerbahadin/gradflow](https://github.com/meerbahadin/gradflow) with added per-color opacity support.
+
 Beautiful animated WebGL gradients for React. Create stunning, performant gradient backgrounds with multiple animation styles.
 
 ## Features
@@ -240,7 +242,9 @@ MIT License - feel free to use in your projects!
 
 ## Credits
 
-Created by [Meer](https://www.meera.dev/)
+Original library created by [Meer Bahadin](https://www.meera.dev/) - [meerbahadin/gradflow](https://github.com/meerbahadin/gradflow)
+
+Per-color opacity feature added in this fork.
 
 ---
 
