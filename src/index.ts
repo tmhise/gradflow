@@ -4,6 +4,8 @@ export { default as GradFlow, default } from './components/grad-flow'
 // Types
 export type {
   RGB,
+  RGBA,
+  ColorInput,
   GradientType,
   GradientConfig,
   GradientConfigInput,
@@ -14,5 +16,5 @@ export type {
 export { DEFAULT_CONFIG, PRESETS, GRADIENT_TYPE_NUMBER } from './constants/gradients'
 
 // Utility functions
-export { hexToRgb, rgbToHex, normalizeColor } from './lib/color-conversion'
-export { randomRGB, generateRandomColors } from './lib/random-colors'
+export { hexToRgb, rgbToHex, normalizeColor, normalizeColorWithAlpha } from './lib/color-conversion'
+export { randomRGBA, generateRandomColors } from './lib/random-colors'

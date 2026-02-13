@@ -8,7 +8,7 @@ import { DEFAULT_CONFIG, PRESETS } from '@/constants/gradients'
 import { useWebGLRenderer } from '@/hooks/useWebGLRenderer'
 import { captureImage } from '@/lib/image-capture'
 import { copyCodeToClipboard } from '@/lib/clipboard'
-import { normalizeColor } from '@/lib/color-conversion'
+import { normalizeColorWithAlpha } from '@/lib/color-conversion'
 import ContentDemo from './content-demo'
 import { Code, ImageDown, Settings } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover'
@@ -25,11 +25,11 @@ export default function GradFlowDemo({
 
     if (initialConfig) {
       if (initialConfig.color1)
-        normalized.color1 = normalizeColor(initialConfig.color1)
+        normalized.color1 = normalizeColorWithAlpha(initialConfig.color1)
       if (initialConfig.color2)
-        normalized.color2 = normalizeColor(initialConfig.color2)
+        normalized.color2 = normalizeColorWithAlpha(initialConfig.color2)
       if (initialConfig.color3)
-        normalized.color3 = normalizeColor(initialConfig.color3)
+        normalized.color3 = normalizeColorWithAlpha(initialConfig.color3)
       if (initialConfig.speed !== undefined)
         normalized.speed = initialConfig.speed
       if (initialConfig.scale !== undefined)
