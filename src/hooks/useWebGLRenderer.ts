@@ -1,7 +1,7 @@
 import { useEffect, useRef, useMemo } from 'react'
 import { Renderer, Program, Mesh, Transform, Plane } from 'ogl'
 import { GradientConfig } from '@/types/gradient'
-import { normalizeRgb } from '@/lib/color-utils'
+import { normalizeRgba } from '@/lib/color-utils'
 import { GRADIENT_TYPE_NUMBER } from '@/constants/gradients'
 
 const vertexShader = `
@@ -25,6 +25,9 @@ const fragmentShader = `
   uniform vec3 u_color1;
   uniform vec3 u_color2;
   uniform vec3 u_color3;
+  uniform float u_alpha1;
+  uniform float u_alpha2;
+  uniform float u_alpha3;
   uniform float u_speed;
   uniform float u_scale;
   uniform int u_type;
@@ -42,16 +45,25 @@ const fragmentShader = `
   }
 
   // @Gradient Types
-  vec3 linearGradient(vec2 uv, float time) {
+  vec4 linearGradient(vec2 uv, float time) {
     float t = (uv.y * u_scale) + sin(uv.x * PI + time) * 0.1;
     t = clamp(t, 0.0, 1.0);
 
-    return t < 0.5
-      ? mix(u_color1, u_color2, t * 2.0)
-      : mix(u_color2, u_color3, (t - 0.5) * 2.0);
+    vec3 color;
+    float alpha;
+    if (t < 0.5) {
+      float blend = t * 2.0;
+      color = mix(u_color1, u_color2, blend);
+      alpha = mix(u_alpha1, u_alpha2, blend);
+    } else {
+      float blend = (t - 0.5) * 2.0;
+      color = mix(u_color2, u_color3, blend);
+      alpha = mix(u_alpha2, u_alpha3, blend);
+    }
+    return vec4(color, alpha);
   }
 
-  vec3 conicGradient(vec2 uv, float time) {
+  vec4 conicGradient(vec2 uv, float time) {
     vec2 center = vec2(0.5);
     vec2 pos = uv - center;
 
@@ -62,18 +74,25 @@ const fragmentShader = `
     float smoothT = t;
 
     vec3 color;
+    float alpha;
     if (smoothT < 0.33) {
-      color = mix(u_color1, u_color2, smoothstep(0.0, 0.33, smoothT));
+      float blend = smoothstep(0.0, 0.33, smoothT);
+      color = mix(u_color1, u_color2, blend);
+      alpha = mix(u_alpha1, u_alpha2, blend);
     } else if (smoothT < 0.66) {
-      color = mix(u_color2, u_color3, smoothstep(0.33, 0.66, smoothT));
+      float blend = smoothstep(0.33, 0.66, smoothT);
+      color = mix(u_color2, u_color3, blend);
+      alpha = mix(u_alpha2, u_alpha3, blend);
     } else {
-      color = mix(u_color3, u_color1, smoothstep(0.66, 1.0, smoothT));
+      float blend = smoothstep(0.66, 1.0, smoothT);
+      color = mix(u_color3, u_color1, blend);
+      alpha = mix(u_alpha3, u_alpha1, blend);
     }
 
     float dist = length(pos);
     color += sin(dist * 8.0 + time * 1.5) * 0.03;
 
-    return color;
+    return vec4(color, alpha);
   }
 
   #define S(a,b,t) smoothstep(a,b,t)
@@ -101,7 +120,7 @@ const fragmentShader = `
     return 0.5 + 0.5 * n;
   }
 
-  vec3 animatedGradient(vec2 uv, float time) {
+  vec4 animatedGradient(vec2 uv, float time) {
     float ratio = u_resolution.x / u_resolution.y;
     vec2 tuv = uv;
     tuv -= 0.5;
@@ -119,13 +138,16 @@ const fragmentShader = `
 
     vec3 layer1 = mix(u_color1, u_color2, S(-0.3, 0.2, (tuv * Rot(radians(-5.0))).x));
     vec3 layer2 = mix(u_color2, u_color3, S(-0.3, 0.2, (tuv * Rot(radians(-5.0))).x));
+    float alpha1 = mix(u_alpha1, u_alpha2, S(-0.3, 0.2, (tuv * Rot(radians(-5.0))).x));
+    float alpha2 = mix(u_alpha2, u_alpha3, S(-0.3, 0.2, (tuv * Rot(radians(-5.0))).x));
 
     vec3 finalComp = mix(layer1, layer2, S(0.05, -0.2, tuv.y));
+    float finalAlpha = mix(alpha1, alpha2, S(0.05, -0.2, tuv.y));
 
-    return finalComp;
+    return vec4(finalComp, finalAlpha);
   }
 
-  vec3 waveGradient(vec2 uv, float time) {
+  vec4 waveGradient(vec2 uv, float time) {
     float y = uv.y;
 
     float wave1 = sin(uv.x * PI * u_scale * 0.8 + time * u_speed * 0.5) * 0.1;
@@ -136,25 +158,29 @@ const fragmentShader = `
     float pattern = smoothstep(0.0, 1.0, clamp(flowingY, 0.0, 1.0));
 
     vec3 color;
+    float alpha;
     if (pattern < 0.33) {
       float t = smoothstep(0.0, 0.33, pattern);
       color = mix(u_color1, u_color2, t);
+      alpha = mix(u_alpha1, u_alpha2, t);
     } else if (pattern < 0.66) {
       float t = smoothstep(0.33, 0.66, pattern);
       color = mix(u_color2, u_color3, t);
+      alpha = mix(u_alpha2, u_alpha3, t);
     } else {
       float t = smoothstep(0.66, 1.0, pattern);
       color = mix(u_color3, u_color1, t);
+      alpha = mix(u_alpha3, u_alpha1, t);
     }
 
     float variation = sin(uv.x * PI * 2.0 + time * u_speed) *
                       cos(uv.y * PI * 1.5 + time * u_speed * 0.7) * 0.02;
     color += variation;
 
-    return clamp(color, 0.0, 1.0);
+    return vec4(clamp(color, 0.0, 1.0), alpha);
   }
 
-  vec3 silkGradient(vec2 uv, float time) {
+  vec4 silkGradient(vec2 uv, float time) {
     vec2 fragCoord = uv * u_resolution;
     vec2 invResolution = 1.0 / u_resolution.xy;
     vec2 centeredUv = (fragCoord * 2.0 - u_resolution.xy) * invResolution;
@@ -183,16 +209,23 @@ const fragmentShader = `
     vec3 color2Mix = mix(u_color2, u_color3, patterns.y);
     vec3 color3Mix = mix(u_color3, u_color1, patterns.z);
 
+    float alpha1Mix = mix(u_alpha1, u_alpha2, patterns.x);
+    float alpha2Mix = mix(u_alpha2, u_alpha3, patterns.y);
+    float alpha3Mix = mix(u_alpha3, u_alpha1, patterns.z);
+
     vec3 finalColor = mix(color1Mix, color2Mix, patterns.z);
     finalColor = mix(finalColor, color3Mix, patterns.x * 0.5);
+
+    float finalAlpha = mix(alpha1Mix, alpha2Mix, patterns.z);
+    finalAlpha = mix(finalAlpha, alpha3Mix, patterns.x * 0.5);
 
     vec3 originalPattern = vec3(cos(centeredUv * vec2(d, a)) * 0.6 + 0.4, cos(a + d) * 0.5 + 0.5);
     originalPattern = cos(originalPattern * cos(vec3(d, a, 2.5)) * 0.5 + 0.5);
 
-    return mix(finalColor, originalPattern * finalColor, 0.3);
+    return vec4(mix(finalColor, originalPattern * finalColor, 0.3), finalAlpha);
   }
 
-  vec3 smokeGradient(vec2 uv, float time) {
+  vec4 smokeGradient(vec2 uv, float time) {
     float mr = min(u_resolution.x, u_resolution.y);
     vec2 fragCoord = uv * u_resolution;
     vec2 p = (2.0 * fragCoord.xy - u_resolution.xy) / mr;
@@ -216,27 +249,29 @@ const fragmentShader = `
     greenPattern = clamp(greenPattern, 0.0, 1.0);
     bluePattern = bluePattern * 0.5 + 0.5;
 
-    vec3 color;
-
     vec3 color12 = mix(u_color1, u_color2, greenPattern);
+    float alpha12 = mix(u_alpha1, u_alpha2, greenPattern);
 
-    color = mix(color12, u_color3, bluePattern);
+    vec3 color = mix(color12, u_color3, bluePattern);
+    float alpha = mix(alpha12, u_alpha3, bluePattern);
 
-    return clamp(color, 0.0, 1.0);
+    return vec4(clamp(color, 0.0, 1.0), alpha);
   }
 
-  vec3 stripeGradient(vec2 uv, float time) {
+  vec4 stripeGradient(vec2 uv, float time) {
     vec2 p = ((uv * u_resolution * 2.0 - u_resolution.xy) / (u_resolution.x + u_resolution.y) * 2.0) * u_scale;
     float t = time * 0.7, a = 4.0 * p.y - sin(-p.x * 3.0 + p.y - t);
     a = smoothstep(cos(a) * 0.7, sin(a) * 0.7 + 1.0, cos(a - 4.0 * p.y) - sin(a + 3.0 * p.x));
 
     vec2 warped = (cos(a) * p + sin(a) * vec2(-p.y, p.x)) * 0.5 + 0.5;
     vec3 color = mix(u_color1, u_color2, warped.x);
+    float alpha = mix(u_alpha1, u_alpha2, warped.x);
 
     color = mix(color, u_color3, warped.y);
+    alpha = mix(alpha, u_alpha3, warped.y);
     color *= color + 0.6 * sqrt(color);
 
-    return clamp(color, 0.0, 1.0);
+    return vec4(clamp(color, 0.0, 1.0), alpha);
   }
 
   // @Main
@@ -244,32 +279,35 @@ const fragmentShader = `
     vec2 uv = vUv;
     float time = u_time * u_speed;
 
-    vec3 color;
+    vec4 result;
 
     if (u_type == 0) {
-      color = linearGradient(uv, time);
+      result = linearGradient(uv, time);
     } else if (u_type == 1) {
-      color = conicGradient(uv, time);
+      result = conicGradient(uv, time);
     } else if (u_type == 2) {
-      color = animatedGradient(uv, time);
+      result = animatedGradient(uv, time);
     } else if (u_type == 3) {
-      color = waveGradient(uv, time);
+      result = waveGradient(uv, time);
     } else if (u_type == 4) {
-      color = silkGradient(uv, time);
+      result = silkGradient(uv, time);
     } else if (u_type == 5) {
-      color = smokeGradient(uv, time);
+      result = smokeGradient(uv, time);
     } else if (u_type == 6) {
-      color = stripeGradient(uv, time);
+      result = stripeGradient(uv, time);
     } else {
-      color = animatedGradient(uv, time);
+      result = animatedGradient(uv, time);
     }
+
+    vec3 color = result.rgb;
+    float alpha = result.a;
 
     if (u_noise > 0.001) {
       float grain = noise(uv * 200.0 + time * 0.1);
       color *= (1.0 - u_noise * 0.4 + u_noise * grain * 0.4);
     }
 
-    gl_FragColor = vec4(color, 1.0);
+    gl_FragColor = vec4(color, alpha);
   }
 `
 
@@ -291,9 +329,9 @@ export function useWebGLRenderer(
 
   const normalizedColors = useMemo(
     () => ({
-      color1: normalizeRgb(config.color1),
-      color2: normalizeRgb(config.color2),
-      color3: normalizeRgb(config.color3),
+      color1: normalizeRgba(config.color1),
+      color2: normalizeRgba(config.color2),
+      color3: normalizeRgba(config.color3),
     }),
     [config.color1, config.color2, config.color3]
   )
@@ -305,13 +343,16 @@ export function useWebGLRenderer(
     const renderer = new Renderer({
       canvas,
       dpr: Math.min(window.devicePixelRatio, 2),
-      alpha: false,
+      alpha: true,  // Enable transparency
       antialias: false,
       powerPreference: 'high-performance',
+      premultipliedAlpha: false,
     })
     rendererRef.current = renderer
 
     const gl = renderer.gl
+    gl.clearColor(0, 0, 0, 0)  // Clear to transparent
+
     const plane = new Plane(gl, { width: 2, height: 2 })
 
     const handleResize = () => {
@@ -339,15 +380,19 @@ export function useWebGLRenderer(
       fragment: fragmentShader,
       uniforms: {
         u_time: { value: 0 },
-        u_color1: { value: normalizedColors.color1 },
-        u_color2: { value: normalizedColors.color2 },
-        u_color3: { value: normalizedColors.color3 },
+        u_color1: { value: normalizedColors.color1.rgb },
+        u_color2: { value: normalizedColors.color2.rgb },
+        u_color3: { value: normalizedColors.color3.rgb },
+        u_alpha1: { value: normalizedColors.color1.alpha },
+        u_alpha2: { value: normalizedColors.color2.alpha },
+        u_alpha3: { value: normalizedColors.color3.alpha },
         u_speed: { value: config.speed },
         u_scale: { value: config.scale },
         u_type: { value: GRADIENT_TYPE_NUMBER[config.type ?? 'animated'] },
         u_noise: { value: config.noise },
         u_resolution: { value: [canvas.clientWidth, canvas.clientHeight] },
       },
+      transparent: true,
     })
     programRef.current = program
 
@@ -391,9 +436,12 @@ export function useWebGLRenderer(
     const program = programRef.current
     if (!program) return
 
-    program.uniforms.u_color1.value = normalizedColors.color1
-    program.uniforms.u_color2.value = normalizedColors.color2
-    program.uniforms.u_color3.value = normalizedColors.color3
+    program.uniforms.u_color1.value = normalizedColors.color1.rgb
+    program.uniforms.u_color2.value = normalizedColors.color2.rgb
+    program.uniforms.u_color3.value = normalizedColors.color3.rgb
+    program.uniforms.u_alpha1.value = normalizedColors.color1.alpha
+    program.uniforms.u_alpha2.value = normalizedColors.color2.alpha
+    program.uniforms.u_alpha3.value = normalizedColors.color3.alpha
     program.uniforms.u_speed.value = config.speed
     program.uniforms.u_scale.value = config.scale
     program.uniforms.u_type.value =

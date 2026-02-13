@@ -1,10 +1,15 @@
-import { RGB } from '@/types/gradient'
+import { RGB, RGBA } from '@/types/gradient'
 
 export const normalizeRgb = (rgb: RGB): [number, number, number] => [
   rgb.r / 255,
   rgb.g / 255,
   rgb.b / 255,
 ]
+
+export const normalizeRgba = (rgba: RGBA): { rgb: [number, number, number]; alpha: number } => ({
+  rgb: [rgba.r / 255, rgba.g / 255, rgba.b / 255],
+  alpha: rgba.a,
+})
 
 export const rgbToHex = (rgb: RGB): string =>
   '#' +
